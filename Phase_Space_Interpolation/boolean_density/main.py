@@ -18,7 +18,7 @@ for iter_id in iterations_list:
         particle_position = data[element]
         # break
         density = []
-        for particle in range(0, 10):  # len(particle_position[:, 0:3])
+        for particle in range(0, len(particle_position[:, 0:3])):  # len(particle_position[:, 0:3])
             particles__offset_x = particle_position[particle, 0:3][0]
             particles__offset_y = particle_position[particle, 0:3][1]
             particles__offset_z = particle_position[particle, 0:3][2]
