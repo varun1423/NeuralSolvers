@@ -2,7 +2,7 @@ import numpy as np
 import openpmd_api as io
 
 
-def data_set(path, iteration_id=2000):
+def data_set(path, iteration_id):
     # path = "D:/TUD/TU_Dresden/WiSe2021/Thesis/Data_s/004_KHI/simOutput/openPMD/simOutput_%06T.bp"
     series = io.Series(path, io.Access_Type.read_only)
 
@@ -47,34 +47,49 @@ def iteration():
         iterations.append(iter_id)
     return iterations
 
-def assignment_function(distance):
+def assignment_function_with_weights(neighbouring_cells_distances,idx_col):
     cumulative_assignment_function = 0
-    for k in range(0, len(distance)):
-        if abs(distance[k]) < 0.5:
-            assignment_func = ((3 / 4) - (distance[k] ** 2))
-        elif 0.5 < abs(distance[k]) < 1.5:
-            assignment_func = (1 / 2) * ((3 / 2) - abs(distance[k])) ** 2
+    weighthing_factor = 0
+
+    for k in range(0, len(neighbouring_cells_distances[:,0])):
+        if abs(neighbouring_cells_distances[k,idx_col]) < 0.5:
+            assignment_func = ((3 / 4) - (neighbouring_cells_distances[k,idx_col] ** 2))
+            weighthing_factor += neighbouring_cells_distances[k,3]
+        elif 0.5 < abs(neighbouring_cells_distances[k,idx_col]) < 1.5:
+            assignment_func = (1 / 2) * ((3 / 2) - abs(neighbouring_cells_distances[k,idx_col])) ** 2
+            weighthing_factor += neighbouring_cells_distances[k,3]
         else:
             assignment_func = 0
-    cumulative_assignment_function = cumulative_assignment_function + assignment_func
-    return cumulative_assignment_function
+        cumulative_assignment_function += assignment_func
+    return cumulative_assignment_function*weighthing_factor
 
 
-def small_search_space(particle_position, particles__offset_x, particles__offset_y, particles__offset_z):
-    mask_x = (particle_position[:, 0] >= particles__offset_x - 1)
+def small_search_space(particle_position, particles__offset_x, particles__offset_y, particles__offset_z): #cell pos
+    mask_x = (particle_position[:, 0] >= particles__offset_x - 2)
     output = particle_position[mask_x, :]
-    mask_xx = (output[:, 0] <= particles__offset_x + 1)
+    mask_xx = (output[:, 0] <= particles__offset_x + 2)
     output = output[mask_xx, :]
 
-    mask_y = (output[:, 1] >= particles__offset_y - 1)
+    mask_y = (output[:, 1] >= particles__offset_y - 2)
     output = output[mask_y, :]
-    mask_yy = (output[:, 1] <= particles__offset_y + 1)
+    mask_yy = (output[:, 1] <= particles__offset_y + 2)
     output = output[mask_yy, :]
 
-    mask_z = (output[:, 2] >= particles__offset_z - 1)
+    mask_z = (output[:, 2] >= particles__offset_z - 2)
     output = output[mask_z, :]
-    mask_zz = (output[:, 2] <= particles__offset_z + 1)
+    mask_zz = (output[:, 2] <= particles__offset_z + 2)
     output = output[mask_zz, :]
     particle_position = output
     return particle_position
 
+
+def distances_from_cell(cell_position_x, cell_position_y, cell_position_z,neighbouring_cells):
+    x_distance = neighbouring_cells[:,3]-cell_position_x
+    y_distance = neighbouring_cells[:,4]-cell_position_y
+    z_distance = neighbouring_cells[:,5]-cell_position_z
+    x_distance = x_distance.reshape(x_distance.shape[0],1) 
+    y_distance = y_distance.reshape(y_distance.shape[0],1)
+    z_distance = z_distance.reshape(z_distance.shape[0],1)
+    weights = neighbouring_cells[:,6].reshape(neighbouring_cells[:,6].shape[0],1)
+    neighbouring_cells_distances = np.concatenate((x_distance,y_distance, z_distance, weights), axis=1)
+    return neighbouring_cells_distances

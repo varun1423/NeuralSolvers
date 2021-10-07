@@ -5,44 +5,38 @@ import time
 
 start_time = time.time()
 
-#path = "D:/TUD/TU_Dresden/WiSe2021/Thesis/other/Data_s/004_KHI/simOutput/openPMD/simOutput_%06T.bp"
-path = "/warm_archive/ws/s5960712-ml_currentDeposition/runs/004_KHI/simOutput/openPMD/simOutput_%06T.bp"
+path = "D:/TUD/TU_Dresden/WiSe2021/Thesis/other/Data_s/004_KHI/simOutput/openPMD/simOutput_%06T.bp"
+#path = "/warm_archive/ws/s5960712-ml_currentDeposition/runs/004_KHI/simOutput/openPMD/simOutput_%06T.bp"
+outpath = 'Calculated_Density/Calculated_density_'
 
 iterations_list = functions.iteration()
-iterations_list = iterations_list[0:4]
+iter_id = iterations_list[-1]
+data = functions.data_set(path, iter_id)
 
-for iter_id in iterations_list:
-    data = functions.data_set(path, iter_id)
+particle_position = data['electron']
+cells = particle_position[:,0:3] 
+unique_cells = np.unique(cells, axis=0) #get all the cells unique cells
 
-    for element in ['electron', 'ion']:
-        particle_position = data[element]
-        # break
-        density = []
-        for particle in range(0, 10):  # len(particle_position[:, 0:3])
-            particles__offset_x = particle_position[particle, 0:3][0]
-            particles__offset_y = particle_position[particle, 0:3][1]
-            particles__offset_z = particle_position[particle, 0:3][2]
+density = []
+for cell in range(0,100):#unique_cells[:,0:3]
+    cell_position_x = unique_cells[cell, 0:3][0]
+    cell_position_y = unique_cells[cell, 0:3][1]
+    cell_position_z = unique_cells[cell, 0:3][2]
+#calculates neighboring cells
+    neighbouring_cells = functions.small_search_space(particle_position, cell_position_x, cell_position_y, cell_position_z)
+# calculates distances in X, Y Z direction from the cell position
+    neighbouring_cells_distances = functions.distances_from_cell(cell_position_x, cell_position_y, cell_position_z, neighbouring_cells)
+#calculates assignment function, it is already multiplied by weights 
+    x_component = functions.assignment_function_with_weights(neighbouring_cells_distances,0)
+    y_component = functions.assignment_function_with_weights(neighbouring_cells_distances,1)
+    z_component = functions.assignment_function_with_weights(neighbouring_cells_distances,2)
+#density at cell
+    density_at_cell = x_component * y_component * z_component
+    density.append([density_at_cell])
+calculated_density = np.stack(density, axis=0)
+to_save = np.concatenate((unique_cells[0:cell+1,:], calculated_density), axis=1)
+np.save( outpath + str(iter_id) , to_save)
 
-            neighbouring_cells = functions.small_search_space(particle_position, particles__offset_x,
-                                                              particles__offset_y, particles__offset_z)
-
-            x_distance = particles__offset_x - neighbouring_cells[:, 3]
-            y_distance = particles__offset_y - neighbouring_cells[:, 4]
-            z_distance = particles__offset_z - neighbouring_cells[:, 5]
-            weighting = particle_position[particle, 6]
-
-            x_density = functions.assignment_function(x_distance)
-            y_density = functions.assignment_function(y_distance)
-            z_density = functions.assignment_function(z_distance)
-            x_density_w = x_density * weighting
-            y_density_w = y_density * weighting
-            z_density_w = z_density * weighting
-            density.append([x_density, y_density, z_density, x_density_w, y_density_w, z_density_w])
-            if particle % 25000 == 0:
-                calculated_density = np.stack(density, axis=0)
-                np.save('Calculated_Density/density_intermediate_' + element + '_' + str(iter_id), calculated_density)
-        calculated_density = np.stack(density, axis=0)
-        np.save('Calculated_Density/Calculated_density_' + element + '_' + str(iter_id), calculated_density)
-    print('Density calculation completed for:{}'.format(iter_id))
 time_taken = (time.time() - start_time) / 3600
 print("time taken:{} hours".format(time_taken))
+# %%
