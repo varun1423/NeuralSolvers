@@ -18,7 +18,7 @@ cells = particle_position[:,0:3]
 unique_cells = np.unique(cells, axis=0) #get all the cells unique cells
 
 density = []
-for cell in range(0,100):#unique_cells[:,0:3]
+for cell in range(0,len(unique_cells[:,0:3])):#unique_cells[:,0:3]
     cell_position_x = unique_cells[cell, 0:3][0]
     cell_position_y = unique_cells[cell, 0:3][1]
     cell_position_z = unique_cells[cell, 0:3][2]
